@@ -37,7 +37,11 @@ class LiveTranscriber:
         # Import the heavy dependency lazily so CLI helpers that do not need
         # realtime transcription can still start without importing RealtimeSTT.
         try:
-            from RealtimeSTT import AudioToTextRecorder  # type: ignore[import-not-found]
+            # Import the recorder implementation directly instead of the package
+            # top level. RealtimeSTT's __init__ imports its microphone helpers,
+            # which hard-require PyAudio even when we explicitly run with
+            # use_microphone=False and only feed browser audio.
+            from RealtimeSTT.audio_recorder import AudioToTextRecorder  # type: ignore[import-not-found]
         except ImportError as exc:
             raise RuntimeError("RealtimeSTT is not installed. Run `uv sync` before starting the server.") from exc
 
@@ -110,4 +114,3 @@ class LiveTranscriber:
                 timestamp=round(time.monotonic() - self.started_monotonic, 3),
             )
         )
-

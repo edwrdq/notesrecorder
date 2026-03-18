@@ -7,14 +7,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # FFmpeg powers both the live decode path and the final WebM -> WAV conversion.
-# PortAudio headers are installed because RealtimeSTT depends on PyAudio.
+# The container only handles browser-streamed audio, so it does not need
+# RealtimeSTT's optional PyAudio microphone stack.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        build-essential \
         ca-certificates \
         curl \
         ffmpeg \
-        portaudio19-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -24,7 +23,7 @@ COPY pyproject.toml uv.lock ./
 COPY src ./src
 
 RUN mkdir -p /lectures
-RUN uv sync --frozen --no-dev --no-cache
+RUN uv sync --frozen --no-dev --no-cache --no-install-package pyaudio
 
 EXPOSE 8000
 
