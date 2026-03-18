@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lecture Capture</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="/static/fonts/custom.css" onerror="this.remove()" />
+    <style>
+      :root {
+        --font-ui: "JetBrains Mono", monospace;
+        --bg: #0e0e0f;
+        --surface: #111113;
+        --surface-2: #151518;
+        --accent: #e05c3a;
+        --text: #c8c8d0;
+        --text-strong: #e8e8f0;
+        --text-soft: #888;
+        --muted: #444;
+        --border: #1e1e22;
+        --border-hover: #2a2a2e;
+        --success: #5ac17a;
+        --warning: #b6a256;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+        background: radial-gradient(circle at top right, rgba(224, 92, 58, 0.07), transparent 28%),
+          linear-gradient(180deg, #0b0b0c, var(--bg));
+        color: var(--text);
+        font-family: var(--font-ui);
+      }
+
+      body {
+        padding: 16px;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+        transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      }
+
+      button:active {
+        transform: scale(0.97);
+      }
+
+      .app {
+        max-width: 1400px;
+        margin: 0 auto;
+        border: 0.5px solid var(--border);
+        background: rgba(17, 17, 19, 0.96);
+        min-height: calc(100vh - 32px);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-bottom: 0.5px solid var(--border);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.88rem;
+      }
+
+      .status-dot,
+      .live-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--muted);
+        display: inline-block;
+        margin-right: 10px;
+        box-shadow: 0 0 0 transparent;
+      }
+
+      .status-dot.connected,
+      .live-dot.connected {
+        background: var(--accent);
+        animation: pulse 1.3s infinite;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        color: var(--text-soft);
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        flex: 1;
+        min-height: 0;
+      }
+
+      .sidebar {
+        border-right: 0.5px solid var(--border);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .label {
+        color: var(--text-soft);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .text-input {
+        width: 100%;
+        background: var(--surface-2);
+        color: var(--text-strong);
+        border: 0.5px solid var(--border);
+        padding: 10px 12px;
+        outline: none;
+      }
+
+      .text-input:focus {
+        border-color: var(--accent);
+      }
+
+      .pill-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .pill {
+        border: 0.5px solid var(--border);
+        background: transparent;
+        color: var(--text-soft);
+        padding: 8px 10px;
+        text-transform: lowercase;
+      }
+
+      .pill.active {
+        border-color: var(--accent);
+        color: var(--text-strong);
+        background: rgba(224, 92, 58, 0.1);
+      }
+
+      .primary-button,
+      .secondary-button,
+      .ghost-button {
+        border: 0.5px solid var(--border);
+        padding: 10px 12px;
+        text-align: left;
+      }
+
+      .primary-button {
+        background: var(--accent);
+        color: #120f0d;
+        border-color: rgba(224, 92, 58, 0.55);
+      }
+
+      .secondary-button {
+        background: transparent;
+        color: var(--text);
+      }
+
+      .ghost-button {
+        background: transparent;
+        color: var(--text-soft);
+      }
+
+      .primary-button:hover,
+      .secondary-button:hover,
+      .ghost-button:hover,
+      .pill:hover,
+      .session-item:hover {
+        border-color: var(--border-hover);
+      }
+
+      .primary-button:disabled,
+      .secondary-button:disabled,
+      .ghost-button:disabled {
+        cursor: default;
+        opacity: 0.5;
+      }
+
+      .sessions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 120px;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+
+      .session-item {
+        background: transparent;
+        border: 0.5px solid var(--border);
+        padding: 10px;
+        color: inherit;
+        text-align: left;
+        width: 100%;
+      }
+
+      .session-title {
+        color: var(--text-strong);
+        font-size: 0.92rem;
+        margin-bottom: 4px;
+      }
+
+      .session-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--text-soft);
+        font-size: 0.75rem;
+      }
+
+      .session-status.done {
+        color: var(--success);
+      }
+
+      .session-status.error {
+        color: var(--accent);
+      }
+
+      .session-download {
+        margin-top: 6px;
+        display: inline-block;
+        color: var(--success);
+        text-decoration: none;
+        font-size: 0.78rem;
+      }
+
+      .main {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        min-height: 0;
+      }
+
+      .main-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px;
+        border-bottom: 0.5px solid var(--border);
+      }
+
+      .main-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-strong);
+      }
+
+      .transcript-pane {
+        padding: 22px 18px;
+        overflow-y: auto;
+        min-height: 0;
+        line-height: 1.7;
+        white-space: pre-wrap;
+      }
+
+      .placeholder {
+        color: #333;
+      }
+
+      .line {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--text-soft);
+      }
+
+      .line.recent {
+        color: var(--text);
+      }
+
+      .line.current {
+        color: var(--text-strong);
+      }
+
+      .cursor {
+        display: inline-block;
+        width: 8px;
+        margin-left: 6px;
+        background: var(--accent);
+        animation: blink 0.9s steps(1) infinite;
+      }
+
+      .bottom-bar {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+        border-top: 0.5px solid var(--border);
+        padding: 10px 18px;
+      }
+
+      .state-text {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        color: var(--text-soft);
+        white-space: nowrap;
+      }
+
+      .state-text strong {
+        color: var(--text-strong);
+        font-weight: 500;
+      }
+
+      .progress-track {
+        position: relative;
+        width: 100%;
+        height: 2px;
+        background: #18181c;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0%;
+        background: var(--accent);
+        transition: width 0.2s ease;
+      }
+
+      .progress-track.indeterminate .progress-fill {
+        width: 35%;
+        animation: slide 1s linear infinite;
+      }
+
+      .status-detail {
+        border-top: 0.5px solid var(--border);
+        padding: 10px 18px 14px;
+        color: var(--text-soft);
+        min-height: 42px;
+      }
+
+      .status-detail.success {
+        color: var(--success);
+      }
+
+      .status-detail.warning {
+        color: var(--warning);
+      }
+
+      .status-detail.error {
+        color: var(--accent);
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(224, 92, 58, 0.45);
+        }
+        80% {
+          box-shadow: 0 0 0 12px rgba(224, 92, 58, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(224, 92, 58, 0);
+        }
+      }
+
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes slide {
+        from {
+          transform: translateX(-120%);
+        }
+        to {
+          transform: translateX(320%);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          border-right: none;
+          border-bottom: 0.5px solid var(--border);
+        }
+
+        .bottom-bar {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <div><span class="status-dot" id="headerDot"></span>LECTURE CAPTURE</div>
+        <div class="status-pill"><span class="status-dot" id="headerStatusDot"></span><span id="headerState">idle</span></div>
+      </div>
+      <div class="shell">
+        <aside class="sidebar">
+          <div>
+            <div class="label">Session name</div>
+            <input id="sessionName" class="text-input" autocomplete="off" placeholder="session-YYYY-MM-DD-HH-MM" />
+          </div>
+
+          <div>
+            <div class="label">Audio source</div>
+            <div class="pill-group">
+              <button id="modeMic" class="pill active" type="button">microphone</button>
+              <button id="modeTab" class="pill" type="button">tab audio</button>
+            </div>
+          </div>
+
+          <button id="startButton" class="primary-button" type="button">▶ start recording</button>
+          <button id="stopButton" class="secondary-button" type="button" disabled>■ stop &amp; transcribe</button>
+
+          <div class="label">Past sessions</div>
+          <div id="sessionsList" class="sessions-list"></div>
+        </aside>
+
+        <main class="main">
+          <div class="main-header">
+            <div class="main-title"><span class="live-dot" id="liveDot"></span><span id="transcriptTitle">Live transcript</span></div>
+            <button id="backToLiveButton" class="ghost-button" type="button" hidden>← back to live</button>
+          </div>
+
+          <div id="transcriptPane" class="transcript-pane">
+            <span class="placeholder">waiting for recording to start...</span>
+          </div>
+
+          <div class="bottom-bar">
+            <div class="state-text">
+              <strong id="stateLabel">idle</strong>
+              <span id="timerLabel">00:00:00</span>
+            </div>
+            <div id="progressTrack" class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+            <button id="openFolderButton" class="ghost-button" type="button">open folder ↗</button>
+          </div>
+
+          <div id="statusDetail" class="status-detail">ready.</div>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        mode: "mic",
+        ws: null,
+        mediaRecorder: null,
+        sourceStream: null,
+        audioStream: null,
+        currentSessionId: null,
+        currentState: "idle",
+        explicitStop: false,
+        reconnectTimer: null,
+        sessionsPollTimer: null,
+        statusPollTimer: null,
+        timerInterval: null,
+        startedAtMs: null,
+        elapsedSeconds: 0,
+        liveEntries: [],
+        viewMode: "live",
+      };
+
+      const els = {
+        sessionName: document.getElementById("sessionName"),
+        modeMic: document.getElementById("modeMic"),
+        modeTab: document.getElementById("modeTab"),
+        startButton: document.getElementById("startButton"),
+        stopButton: document.getElementById("stopButton"),
+        sessionsList: document.getElementById("sessionsList"),
+        transcriptPane: document.getElementById("transcriptPane"),
+        transcriptTitle: document.getElementById("transcriptTitle"),
+        backToLiveButton: document.getElementById("backToLiveButton"),
+        stateLabel: document.getElementById("stateLabel"),
+        timerLabel: document.getElementById("timerLabel"),
+        progressTrack: document.getElementById("progressTrack"),
+        progressFill: document.getElementById("progressFill"),
+        statusDetail: document.getElementById("statusDetail"),
+        headerState: document.getElementById("headerState"),
+        headerDot: document.getElementById("headerDot"),
+        headerStatusDot: document.getElementById("headerStatusDot"),
+        liveDot: document.getElementById("liveDot"),
+        openFolderButton: document.getElementById("openFolderButton"),
+      };
+
+      function secureContextForTabAudio() {
+        return window.isSecureContext || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+      }
+
+      function formatSeconds(totalSeconds) {
+        const safe = Math.max(0, Math.floor(totalSeconds));
+        const hours = String(Math.floor(safe / 3600)).padStart(2, "0");
+        const minutes = String(Math.floor((safe % 3600) / 60)).padStart(2, "0");
+        const seconds = String(safe % 60).padStart(2, "0");
+        return `${hours}:${minutes}:${seconds}`;
+      }
+
+      function nowSessionName() {
+        const now = new Date();
+        const pad = (value) => String(value).padStart(2, "0");
+        return `session-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}`;
+      }
+
+      function setMode(mode) {
+        state.mode = mode;
+        els.modeMic.classList.toggle("active", mode === "mic");
+        els.modeTab.classList.toggle("active", mode === "tab");
+      }
+
+      function setStatusDetail(text, tone = "") {
+        els.statusDetail.textContent = text;
+        els.statusDetail.className = `status-detail ${tone}`.trim();
+      }
+
+      function setHeaderConnection(connected) {
+        [els.headerDot, els.headerStatusDot, els.liveDot].forEach((element) => {
+          element.classList.toggle("connected", connected);
+        });
+      }
+
+      function setStateLabel(nextState) {
+        state.currentState = nextState;
+        els.stateLabel.textContent = nextState;
+        els.headerState.textContent = nextState;
+      }
+
+      function setProgress(percent, { indeterminate = false } = {}) {
+        els.progressTrack.classList.toggle("indeterminate", indeterminate);
+        els.progressFill.style.width = indeterminate ? "35%" : `${Math.max(0, Math.min(100, percent))}%`;
+      }
+
+      function startTimer() {
+        clearInterval(state.timerInterval);
+        state.startedAtMs = Date.now() - state.elapsedSeconds * 1000;
+        state.timerInterval = window.setInterval(() => {
+          state.elapsedSeconds = Math.floor((Date.now() - state.startedAtMs) / 1000);
+          els.timerLabel.textContent = formatSeconds(state.elapsedSeconds);
+        }, 1000);
+      }
+
+      function stopTimer() {
+        clearInterval(state.timerInterval);
+      }
+
+      function cleanupMediaStreams() {
+        const seen = new Set();
+        [state.audioStream, state.sourceStream].forEach((stream) => {
+          if (!stream) return;
+          stream.getTracks().forEach((track) => {
+            if (seen.has(track.id)) return;
+            seen.add(track.id);
+            try {
+              track.stop();
+            } catch (error) {
+              console.warn("track stop failed", error);
+            }
+          });
+        });
+        state.audioStream = null;
+        state.sourceStream = null;
+      }
+
+      function renderLiveTranscript() {
+        if (state.viewMode !== "live") {
+          return;
+        }
+
+        if (state.liveEntries.length === 0) {
+          els.transcriptPane.innerHTML = '<span class="placeholder">waiting for recording to start...</span>';
+          return;
+        }
+
+        const lines = state.liveEntries.map((entry, index) => {
+          const isCurrent = index === state.liveEntries.length - 1;
+          const isRecent = index >= state.liveEntries.length - 4;
+          const cls = isCurrent ? "line current" : isRecent ? "line recent" : "line";
+          const cursor = isCurrent ? '<span class="cursor"></span>' : "";
+          return `<span class="${cls}">${escapeHtml(entry.text)}${cursor}</span>`;
+        });
+        els.transcriptPane.innerHTML = lines.join("");
+        els.transcriptPane.scrollTop = els.transcriptPane.scrollHeight;
+      }
+
+      function renderStoredTranscript(detail) {
+        state.viewMode = "stored";
+        els.transcriptTitle.textContent = detail.session_name;
+        els.backToLiveButton.hidden = false;
+        const body = detail.transcript_text || "transcript is not ready yet.";
+        els.transcriptPane.innerHTML = `<span class="line current">${escapeHtml(body)}</span>`;
+        setStatusDetail(`Viewing saved transcript from ${detail.path}`, "success");
+      }
+
+      function restoreLiveView() {
+        state.viewMode = "live";
+        els.transcriptTitle.textContent = "Live transcript";
+        els.backToLiveButton.hidden = true;
+        renderLiveTranscript();
+      }
+
+      function appendLiveText(text) {
+        const cleaned = `${text || ""}`.trim();
+        if (!cleaned) return;
+        const last = state.liveEntries[state.liveEntries.length - 1];
+        if (last && last.text === cleaned) return;
+        state.liveEntries.push({ text: cleaned });
+        renderLiveTranscript();
+      }
+
+      function escapeHtml(text) {
+        return text
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
+      }
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          ...options,
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({ detail: `${response.status} ${response.statusText}` }));
+          throw new Error(payload.detail || `${response.status} ${response.statusText}`);
+        }
+
+        return response.json();
+      }
+
+      async function refreshSessions() {
+        try {
+          const sessions = await fetchJson("/sessions");
+          renderSessionsList(sessions);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      function renderSessionsList(sessions) {
+        if (!Array.isArray(sessions) || sessions.length === 0) {
+          els.sessionsList.innerHTML = '<span class="placeholder">no sessions yet.</span>';
+          return;
+        }
+
+        els.sessionsList.innerHTML = sessions
+          .map((session) => {
+            const duration = session.duration_seconds == null ? "--:--:--" : formatSeconds(session.duration_seconds);
+            return `
+              <div>
+                <button class="session-item" type="button" data-session-id="${session.session_id}">
+                  <div class="session-title">${escapeHtml(session.session_name)}</div>
+                  <div class="session-meta">
+                    <span>${escapeHtml(session.created_at)}</span>
+                    <span>${duration}</span>
+                  </div>
+                  <div class="session-meta">
+                    <span>${escapeHtml(session.mode)}</span>
+                    <span class="session-status ${escapeHtml(session.state)}">${escapeHtml(session.state)}</span>
+                  </div>
+                </button>
+                <a class="session-download" href="${session.download_url}" download>download transcript</a>
+              </div>
+            `;
+          })
+          .join("");
+
+        els.sessionsList.querySelectorAll(".session-item").forEach((button) => {
+          button.addEventListener("click", async (event) => {
+            const sessionId = button.dataset.sessionId;
+            if (!sessionId) return;
+            try {
+              const detail = await fetchJson(`/sessions/${sessionId}`);
+              renderStoredTranscript(detail);
+            } catch (error) {
+              setStatusDetail(error.message, "error");
+            }
+          });
+        });
+      }
+
+      function websocketUrl(sessionId) {
+        const protocol = location.protocol === "https:" ? "wss" : "ws";
+        return `${protocol}://${location.host}/ws/audio?session_id=${encodeURIComponent(sessionId)}`;
+      }
+
+      function scheduleReconnect() {
+        window.clearTimeout(state.reconnectTimer);
+        if (state.currentState !== "recording" || !state.currentSessionId || state.explicitStop) {
+          return;
+        }
+
+        setStatusDetail("socket disconnected. retrying in 3 seconds…", "warning");
+        state.reconnectTimer = window.setTimeout(() => {
+          openSocket(state.currentSessionId).catch((error) => {
+            setStatusDetail(error.message, "error");
+          });
+        }, 3000);
+      }
+
+      async function openSocket(sessionId) {
+        if (state.ws && state.ws.readyState <= 1) {
+          return;
+        }
+
+        await new Promise((resolve, reject) => {
+          const socket = new WebSocket(websocketUrl(sessionId));
+          socket.binaryType = "arraybuffer";
+
+          socket.addEventListener("open", () => {
+            state.ws = socket;
+            setHeaderConnection(true);
+            resolve();
+          });
+
+          socket.addEventListener("message", (event) => {
+            let payload;
+            try {
+              payload = JSON.parse(event.data);
+            } catch (error) {
+              return;
+            }
+
+            if (payload.type === "connected") {
+              setStatusDetail(`connected to session ${payload.session_id}`);
+            } else if (payload.type === "transcript") {
+              appendLiveText(payload.text);
+            } else if (payload.type === "transcribing") {
+              setStateLabel("transcribing");
+              setProgress(20, { indeterminate: true });
+              stopTimer();
+              setStatusDetail("audio finalized. running full transcription…", "warning");
+            } else if (payload.type === "progress") {
+              setStateLabel("transcribing");
+              setProgress(payload.progress ?? 0, { indeterminate: false });
+            } else if (payload.type === "done") {
+              setStateLabel("done");
+              setProgress(100, { indeterminate: false });
+              stopTimer();
+              state.explicitStop = false;
+              els.startButton.disabled = false;
+              els.stopButton.disabled = true;
+              setStatusDetail("full transcript ready. select the session below to view or download it.", "success");
+              refreshSessions();
+            } else if (payload.type === "error") {
+              setStateLabel("error");
+              setProgress(100, { indeterminate: false });
+              stopTimer();
+              els.startButton.disabled = false;
+              els.stopButton.disabled = true;
+              setStatusDetail(payload.message || "transcription failed.", "error");
+            }
+          });
+
+          socket.addEventListener("close", () => {
+            setHeaderConnection(false);
+            state.ws = null;
+            scheduleReconnect();
+          });
+
+          socket.addEventListener("error", () => {
+            reject(new Error("WebSocket connection failed."));
+          });
+        });
+      }
+
+      async function captureStreamForMode(mode) {
+        if (mode === "mic") {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          return { sourceStream: stream, audioStream: stream };
+        }
+
+        if (!secureContextForTabAudio()) {
+          setStatusDetail("tab audio may fail over HTTP. Chrome requires HTTPS or localhost for getDisplayMedia.", "warning");
+        }
+
+        try {
+          const stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: false });
+          return { sourceStream: stream, audioStream: stream };
+        } catch (firstError) {
+          const fallbackStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+          const audioOnlyStream = new MediaStream(fallbackStream.getAudioTracks());
+          fallbackStream.getVideoTracks().forEach((track) => track.stop());
+          return { sourceStream: fallbackStream, audioStream: audioOnlyStream };
+        }
+      }
+
+      function mediaRecorderMimeType() {
+        const preferred = "audio/webm;codecs=opus";
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(preferred)) {
+          return preferred;
+        }
+        return "audio/webm";
+      }
+
+      async function startRecording() {
+        if (!window.MediaRecorder) {
+          setStatusDetail("MediaRecorder is not supported in this browser.", "error");
+          return;
+        }
+
+        const requestedName = els.sessionName.value.trim() || nowSessionName();
+        els.sessionName.value = requestedName;
+        els.startButton.disabled = true;
+        els.stopButton.disabled = true;
+
+        try {
+          const session = await fetchJson("/session/start", {
+            method: "POST",
+            body: JSON.stringify({
+              session_name: requestedName,
+              mode: state.mode,
+            }),
+          });
+
+          state.currentSessionId = session.session_id;
+          state.liveEntries = [];
+          state.elapsedSeconds = 0;
+          els.timerLabel.textContent = "00:00:00";
+          restoreLiveView();
+
+          await openSocket(session.session_id);
+
+          const capture = await captureStreamForMode(state.mode);
+          state.sourceStream = capture.sourceStream;
+          state.audioStream = capture.audioStream;
+
+          // The browser is the only capture client. We keep the recorder audio-only
+          // so the server sees a small steady Opus stream instead of screen video.
+          const recorder = new MediaRecorder(capture.audioStream, {
+            mimeType: mediaRecorderMimeType(),
+          });
+          state.mediaRecorder = recorder;
+          state.explicitStop = false;
+
+          recorder.addEventListener("dataavailable", async (event) => {
+            if (!event.data || event.data.size === 0 || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
+              return;
+            }
+            const buffer = await event.data.arrayBuffer();
+            state.ws.send(buffer);
+          });
+
+          recorder.addEventListener("stop", () => {
+            cleanupMediaStreams();
+            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+              state.ws.send(JSON.stringify({ type: "stop" }));
+            } else if (state.currentSessionId) {
+              fetchJson("/session/stop", {
+                method: "POST",
+                body: JSON.stringify({ session_id: state.currentSessionId }),
+              }).catch((error) => setStatusDetail(error.message, "error"));
+            }
+          });
+
+          recorder.start(250);
+          setStateLabel("recording");
+          setProgress(0, { indeterminate: false });
+          setStatusDetail(`recording ${state.mode} audio into session ${session.session_id}`);
+          startTimer();
+          els.stopButton.disabled = false;
+        } catch (error) {
+          cleanupMediaStreams();
+          state.mediaRecorder = null;
+          els.startButton.disabled = false;
+          els.stopButton.disabled = true;
+          setStateLabel("error");
+          setStatusDetail(error.message, "error");
+        }
+      }
+
+      function stopRecording() {
+        if (!state.mediaRecorder) {
+          return;
+        }
+
+        state.explicitStop = true;
+        els.stopButton.disabled = true;
+        setStatusDetail("finalizing browser audio stream…", "warning");
+        try {
+          if (state.mediaRecorder.state !== "inactive") {
+            state.mediaRecorder.stop();
+          }
+        } catch (error) {
+          setStatusDetail(error.message, "error");
+        }
+      }
+
+      async function pollStatus() {
+        if (!state.currentSessionId) {
+          return;
+        }
+
+        try {
+          const status = await fetchJson(`/session/status?session_id=${encodeURIComponent(state.currentSessionId)}`);
+          if (status.state) {
+            setStateLabel(status.state);
+          }
+
+          if (status.state === "transcribing") {
+            const progress = Number(status.progress ?? 0);
+            setProgress(progress || 20, { indeterminate: progress <= 0 });
+          } else if (status.state === "done") {
+            setProgress(100, { indeterminate: false });
+            els.startButton.disabled = false;
+            els.stopButton.disabled = true;
+          } else if (status.state === "error") {
+            setProgress(100, { indeterminate: false });
+            els.startButton.disabled = false;
+            els.stopButton.disabled = true;
+            if (status.error_message) {
+              setStatusDetail(status.error_message, "error");
+            }
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      async function openFolderPath() {
+        if (!state.currentSessionId) {
+          setStatusDetail("no active session yet.", "warning");
+          return;
+        }
+
+        try {
+          const detail = await fetchJson(`/sessions/${encodeURIComponent(state.currentSessionId)}`);
+          setStatusDetail(`session path: ${detail.path}`, "success");
+        } catch (error) {
+          setStatusDetail(error.message, "error");
+        }
+      }
+
+      function startPolling() {
+        window.clearInterval(state.sessionsPollTimer);
+        window.clearInterval(state.statusPollTimer);
+        state.sessionsPollTimer = window.setInterval(refreshSessions, 5000);
+        state.statusPollTimer = window.setInterval(pollStatus, 1000);
+      }
+
+      els.modeMic.addEventListener("click", () => setMode("mic"));
+      els.modeTab.addEventListener("click", () => setMode("tab"));
+      els.startButton.addEventListener("click", startRecording);
+      els.stopButton.addEventListener("click", stopRecording);
+      els.backToLiveButton.addEventListener("click", restoreLiveView);
+      els.openFolderButton.addEventListener("click", openFolderPath);
+
+      setMode("mic");
+      setHeaderConnection(false);
+      setProgress(0, { indeterminate: false });
+      refreshSessions();
+      startPolling();
+    </script>
+  </body>
+</html>

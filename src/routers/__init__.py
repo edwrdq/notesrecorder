@@ -1,0 +1,2 @@
+"""FastAPI REST routers."""
+

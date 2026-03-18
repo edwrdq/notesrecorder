@@ -1,0 +1,2 @@
+"""Lecture capture application modules."""
+
